@@ -1,23 +1,27 @@
 name: Ghost Pipeline Hourly Scout
 on:
   schedule:
-    - cron: '*/15 * * * *' # Runs every 15 mins
-  workflow_dispatch: # Allows you to run it manually
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-      - name: Install Tools
+
+      - name: Install dependencies
         run: |
           pip install playwright google-generativeai
-          playwright install chromium
+          # This next line is the critical fix for the 'Exit Code 1'
+          playwright install --with-deps chromium 
+
       - name: Run Scout
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
