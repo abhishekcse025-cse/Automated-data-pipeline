@@ -14,11 +14,10 @@ def run_scout():
         
         print("Scouting RBI Notifications...")
         try:
-            # Go to the site and wait for it to actually finish loading
+            # Go to the site and wait for the network to go quiet
             page.goto("https://www.rbi.org.in/Scripts/NotificationUser.aspx", wait_until="networkidle", timeout=60000)
             
-            # FLEXIBLE SEARCH: Instead of a specific table name, 
-            # we look for the "sectionheader" class which RBI uses for notification titles.
+            # FLEXIBLE SEARCH: Looking for the current RBI link class
             page.wait_for_selector("a.sectionheader", timeout=20000)
             first_notif = page.locator("a.sectionheader").first
             
@@ -27,8 +26,8 @@ def run_scout():
             
             print(f"Target Found: {title}")
 
-            # 2. THE ANALYST
-            prompt = f"Analyze this RBI notification: '{title}'. Extract: 1. Effective Date, 2. Who it affects, 3. Penalties. Format in 3 short bullets."
+            # 2. THE ANALYST (Using Gemini 1.5 Flash)
+            prompt = f"Analyze this RBI notification: '{title}'. Extract: 1. Effective Date, 2. Affected Entities, 3. Penalties. Format in 3 short bullets."
             
             response = client.models.generate_content(
                 model="gemini-1.5-flash",
@@ -41,7 +40,7 @@ def run_scout():
 
         except Exception as e:
             print(f"Scout Error: {e}")
-            # This saves a picture of the error so you can see what the robot saw!
+            # If it fails, this takes a picture of what the robot saw
             page.screenshot(path="error.png")
             
         browser.close()
