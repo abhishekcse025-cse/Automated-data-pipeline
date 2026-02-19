@@ -8,26 +8,25 @@ client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 def run_scout():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
+        # We add a "User Agent" to look like a real person, not a robot
         context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
         page = context.new_page()
         
-        print("Scouting RBI Notifications...")
-        # Going to the main list which is more stable
-        page.goto("https://www.rbi.org.in/Scripts/NotificationUser.aspx", wait_until="networkidle")
+        print("Scouting RBI...")
+        page.goto("https://www.rbi.org.in/Scripts/NotificationUser.aspx", wait_until="domcontentloaded")
         
-        # SMARTER SEARCH: Instead of a specific table, find the first link that has a date-like pattern
-        # or is inside the main content area.
         try:
-            # We wait for any link inside the content area to appear
-            page.wait_for_selector("a.sectionheader", timeout=15000) 
+            # SMARTER SEARCH: Find the first link that looks like a notification
+            # This is more stable than looking for a specific table ID
             first_notif = page.locator("a.sectionheader").first
             
             title = first_notif.inner_text()
-            link = "https://www.rbi.org.in/Scripts/" + first_notif.get_attribute("href")
+            relative_url = first_notif.get_attribute("href")
+            full_url = "https://www.rbi.org.in/Scripts/" + relative_url
             
-            print(f"Target Found: {title}")
+            print(f"Found Notification: {title}")
 
-            # 2. THE ANALYST (Using Gemini 2.0/1.5 Flash via New SDK)
+            # 2. THE ANALYST
             prompt = f"Analyze this RBI notification title: '{title}'. Extract: 1. Effective Date, 2. Affected Entities, 3. Penalties. Summarize in 3 short bullets."
             
             response = client.models.generate_content(
@@ -35,15 +34,15 @@ def run_scout():
                 contents=prompt
             )
             
-            print("\n--- GOV-INTELLIGENCE REPORT ---")
+            print("\n--- ANALYSIS REPORT ---")
             print(response.text)
-            print("------------------------------")
+            print("-----------------------")
 
         except Exception as e:
-            print(f"Scout Error: {e}")
-            # Take a screenshot so we can see what the robot saw (helpful for debugging!)
-            page.screenshot(path="error_screen.png")
-        
+            print(f"Scout encountered a hurdle: {e}")
+            # This helps us see what the robot saw
+            page.screenshot(path="error_view.png")
+            
         browser.close()
 
 if __name__ == "__main__":
