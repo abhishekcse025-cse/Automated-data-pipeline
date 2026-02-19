@@ -25,3 +25,10 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python scout.py
+- name: Save Memory
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add last_notif.txt
+          git commit -m "Update memory: Latest RBI notification tracked" || exit 0
+          git push
