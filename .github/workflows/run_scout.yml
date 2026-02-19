@@ -10,14 +10,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
       - name: Install dependencies
         run: |
           pip install playwright google-genai
-          playwright install --with-deps chromium
+          playwright install --with-deps chromium 
+
       - name: Run Scout
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
