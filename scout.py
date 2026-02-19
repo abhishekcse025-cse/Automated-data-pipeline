@@ -2,32 +2,33 @@ import os
 from google import genai
 from playwright.sync_api import sync_playwright
 
-# 1. SETUP THE BRAIN (2026 New SDK)
+# 1. SETUP THE BRAIN (Modern 2026 SDK)
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 def run_scout():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        # We add a "User Agent" to look like a real person, not a robot
+        # We act like a real Chrome browser to avoid being blocked
         context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
         page = context.new_page()
         
-        print("Scouting RBI...")
-        page.goto("https://www.rbi.org.in/Scripts/NotificationUser.aspx", wait_until="domcontentloaded")
-        
+        print("Scouting RBI Notifications...")
         try:
-            # SMARTER SEARCH: Find the first link that looks like a notification
-            # This is more stable than looking for a specific table ID
+            # Go to the site and wait for it to actually finish loading
+            page.goto("https://www.rbi.org.in/Scripts/NotificationUser.aspx", wait_until="networkidle", timeout=60000)
+            
+            # FLEXIBLE SEARCH: Instead of a specific table name, 
+            # we look for the "sectionheader" class which RBI uses for notification titles.
+            page.wait_for_selector("a.sectionheader", timeout=20000)
             first_notif = page.locator("a.sectionheader").first
             
             title = first_notif.inner_text()
-            relative_url = first_notif.get_attribute("href")
-            full_url = "https://www.rbi.org.in/Scripts/" + relative_url
+            link = "https://www.rbi.org.in/Scripts/" + first_notif.get_attribute("href")
             
-            print(f"Found Notification: {title}")
+            print(f"Target Found: {title}")
 
             # 2. THE ANALYST
-            prompt = f"Analyze this RBI notification title: '{title}'. Extract: 1. Effective Date, 2. Affected Entities, 3. Penalties. Summarize in 3 short bullets."
+            prompt = f"Analyze this RBI notification: '{title}'. Extract: 1. Effective Date, 2. Who it affects, 3. Penalties. Format in 3 short bullets."
             
             response = client.models.generate_content(
                 model="gemini-1.5-flash",
@@ -39,9 +40,9 @@ def run_scout():
             print("-----------------------")
 
         except Exception as e:
-            print(f"Scout encountered a hurdle: {e}")
-            # This helps us see what the robot saw
-            page.screenshot(path="error_view.png")
+            print(f"Scout Error: {e}")
+            # This saves a picture of the error so you can see what the robot saw!
+            page.screenshot(path="error.png")
             
         browser.close()
 
