@@ -20,14 +20,11 @@ def run_scout():
         context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
         page = context.new_page()
         
-try:
+        try:
             print("Step 2: Navigating to RBI Website...")
-            # We wait for the network to be quiet so the table is definitely there
             page.goto("https://www.rbi.org.in/Scripts/NotificationUser.aspx", wait_until="networkidle", timeout=90000)
             
             print("Step 3: Searching for Notification Link...")
-            # We look for 'sectionheader' OR any link inside a table cell (td)
-            # This is much more robust if RBI changes their design!
             selectors = ["a.sectionheader", "td.table-column a", ".table-g-notif a"]
             
             target_link = None
@@ -41,12 +38,11 @@ try:
                     continue
 
             if not target_link:
-                raise Exception("Could not find any notification links. RBI site might be down or changed.")
+                raise Exception("Could not find any notification links.")
 
             title = target_link.inner_text().strip()
             print(f"Found Latest Notification: {title}")
 
-            # --- SMART MEMORY ---
             if os.path.exists(MEMORY_FILE):
                 with open(MEMORY_FILE, "r") as f:
                     last_title = f.read().strip()
@@ -54,12 +50,11 @@ try:
                     print("Step 4: No new updates. System going to sleep.")
                     return 
 
-            print("Step 4: NEW Update Detected! Saving to memory...")
+            print("Step 4: NEW Update Detected!")
             with open(MEMORY_FILE, "w") as f:
                 f.write(title)
 
             print("Step 5: Asking Gemini to summarize...")
-            # Added a slight delay to ensure Gemini doesn't get overwhelmed
             prompt = f"Summarize this RBI notification: '{title}' in 3 simple bullets: Date, Who is affected, and Action required."
             response = client.models.generate_content(model="gemini-1.5-flash", contents=prompt)
             
@@ -70,9 +65,8 @@ try:
 
         except Exception as e:
             print(f"❌ ERROR DURING SCOUTING: {e}")
-            # This will save a picture of what the bot saw so we can debug!
             page.screenshot(path="debug_screenshot.png")
-
+            
         finally:
             browser.close()
 
