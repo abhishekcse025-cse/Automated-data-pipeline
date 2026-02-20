@@ -57,8 +57,11 @@ def run_scout():
                 f.write(target_title)
 
             print("Step 5: Asking Gemini to summarize...")
+            # We use the specific model ID that works with the current API version
             prompt = f"Summarize this RBI notification: '{target_title}' in 3 simple bullets: Date, Who is affected, and Action required."
-            response = client.models.generate_content(model="gemini-1.5-flash", contents=prompt)
+            
+            # CHANGE THIS LINE:
+            response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
             
             print("Step 6: Sending report to Telegram...")
             report = f"🚨 *NEW RBI UPDATE*\n\n{response.text}"
