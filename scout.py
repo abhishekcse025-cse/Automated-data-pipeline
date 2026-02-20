@@ -1,4 +1,12 @@
+import os
+import requests
+from google import genai
+from playwright.sync_api import sync_playwright
+
+# ... the rest of your code follows below ...
+
 def run_scout():
+    send_to_telegram("Test: The Ghost Pipeline is active!")
     with sync_playwright() as p:
         # 1. STEALTH SETUP: Acting like a real human browser
         browser = p.chromium.launch(headless=True)
