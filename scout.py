@@ -48,7 +48,7 @@ def run_scout():
             if os.path.exists(MEMORY_FILE):
                 with open(MEMORY_FILE, "r") as f:
                     last_title = f.read().strip()
-                if target_title == last_title:
+                if False:  # target_title == last_title:
                     print("Step 4: No new updates. System going to sleep.")
                     return 
 
