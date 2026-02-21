@@ -2,42 +2,51 @@ name: RBI Sovereign Brief
 
 on:
   schedule:
-    # 02:30 UTC is exactly 08:00 AM IST (Adjusted for the morning ritual)
+    # 02:30 UTC = 08:00 AM IST
     - cron: '30 2 * * *'
-  workflow_dispatch: # This is your manual "Test" button
+  workflow_dispatch: # Your manual test button
 
 jobs:
-  build:
+  scout_job:
     runs-on: ubuntu-latest
+    
+    # CRITICAL: Grant the robot permission to save files
     permissions:
-      contents: write # Allows the robot to save its memory
+      contents: write
+
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           pip install google-genai playwright requests
           playwright install chromium
 
-      - name: Run Scout
+      - name: Run RBI Scout
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python scout.py
 
-      - name: Save Memory
+      - name: Commit and Push Archives
         run: |
-          git config user.name "GitHub Actions Bot"
-          git config user.email "actions@github.com"
-          if [ -f last_notif.txt ]; then
-            git add last_notif.txt
-            git commit -m "Update memory: Latest RBI notification tracked" || echo "No changes to commit"
+          git config --global user.name "Sovereign-Bot"
+          git config --global user.email "actions@github.com"
+          
+          # Add both the memory file and any new briefs
+          git add last_notif.txt briefs/*.md
+          
+          # Only commit if there are actually changes to avoid errors
+          if git diff --staged --quiet; then
+            echo "No new updates to archive today."
+          else
+            git commit -m "Archive: New Sovereign Brief & Memory Update [$(date)]"
             git push
           fi
