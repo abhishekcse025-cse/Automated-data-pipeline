@@ -1,15 +1,16 @@
-name: Ghost Pipeline Regulatory Scout
+name: RBI Sovereign Brief
+
 on:
   schedule:
-    # 02:30 UTC is exactly 08:00 AM IST
+    # 02:30 UTC is exactly 08:00 AM IST (Adjusted for the morning ritual)
     - cron: '30 2 * * *'
-  workflow_dispatch: # Allows you to run it manually for testing
+  workflow_dispatch: # This is your manual "Test" button
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # CRITICAL: Allows the bot to save memory files
+      contents: write # Allows the robot to save its memory
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,8 +22,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install playwright google-genai requests
-          playwright install --with-deps chromium 
+          pip install google-genai playwright requests
+          playwright install chromium
 
       - name: Run Scout
         env:
@@ -35,40 +36,8 @@ jobs:
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
-          # Check if the file exists before trying to commit it
           if [ -f last_notif.txt ]; then
             git add last_notif.txt
             git commit -m "Update memory: Latest RBI notification tracked" || echo "No changes to commit"
             git push
           fi
-
-        name: RBI Scout Daily
-        on:
-          schedule:
-            # 3:30 UTC is 9:00 AM IST (India Standard Time)
-            - cron: '30 3 * * *'
-          workflow_dispatch: # This button lets you run it manually anytime!
-
-        jobs:
-          build:
-            runs-on: ubuntu-latest
-            steps:
-              - name: Checkout code
-                uses: actions/checkout@v4
-
-              - name: Set up Python
-                uses: actions/setup-python@v5
-                with:
-                  python-version: '3.12'
-
-              - name: Install dependencies
-                run: |
-                  pip install google-genai playwright requests
-                  playwright install chromium
-
-              - name: Run Scout
-                env:
-                  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-                  TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-                  TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-                run: python scout.py
