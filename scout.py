@@ -2,10 +2,9 @@ import os
 import requests
 import datetime
 from google import genai
-from google.genai import types
 from playwright.sync_api import sync_playwright
 
-# 1. SETUP
+# 1. SETUP & AUTH
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
@@ -24,29 +23,38 @@ def run_scout():
     with sync_playwright() as p:
         print("Step 1: Launching Stealth Browser...")
         browser = p.chromium.launch(headless=True)
+        # Using a realistic user agent to avoid being blocked as a bot
         context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
         page = context.new_page()
         
         try:
-            print("Step 2: Navigating to RBI...")
-            page.goto("https://www.rbi.org.in/Scripts/NotificationUser.aspx", wait_until="networkidle", timeout=90000)
+            print("Step 2: Navigating to RBI (Patient Mode)...")
+            page.goto("https://www.rbi.org.in/Scripts/NotificationUser.aspx", 
+                      wait_until="domcontentloaded", timeout=90000)
             
-            print("Step 3: Scanning...")
-            page.wait_for_selector("a", timeout=30000)
-            target_title = page.locator("a.sectionheader").first.inner_text().strip()
+            print("Step 3: Scanning for links...")
+            try:
+                # Waiting for the specific link class to be visible
+                page.wait_for_selector("a.sectionheader", state="visible", timeout=60000)
+                target_title = page.locator("a.sectionheader").first.inner_text().strip()
+                print(f"✅ Found headline: {target_title}")
+            except Exception as e:
+                print(f"⚠️ Timeout: RBI page slow or layout changed. Taking screenshot.")
+                page.screenshot(path="error_screenshot.png")
+                return 
 
             # --- SMART MEMORY ---
             if os.path.exists(MEMORY_FILE):
                 with open(MEMORY_FILE, "r") as f:
                     if target_title == f.read().strip():
-                        print("Step 4: No new updates.")
+                        print("Step 4: No new updates. System going to sleep.")
                         return 
 
             print("Step 4: NEW Update Detected!")
             with open(MEMORY_FILE, "w") as f:
                 f.write(target_title)
 
-            # --- STEP 5: THE SOVEREIGN BRIEF (WITH SEARCH & ARCHIVE) ---
+            # --- STEP 5: THE SOVEREIGN BRIEF (AI RESEARCH) ---
             print("Step 5: Generating Deep Intelligence...")
             try:
                 prompt = f"""
@@ -58,14 +66,11 @@ def run_scout():
                 4. PREVIOUS CONTEXT: What older policy does this update?
                 """
                 
-                # STABLE 2026 SYNTAX: We use a simple dictionary for the tools
-                # This prevents the "AttributeError" you saw in GitHub Actions
+                # Using the stable dictionary-style config for the search tool
                 response = client.models.generate_content(
                     model="gemini-2.0-flash", 
                     contents=prompt,
-                    config={
-                        'tools': [{'google_search': {}}] 
-                    }
+                    config={'tools': [{'google_search': {}}]}
                 )
                 final_text = response.text
 
@@ -78,13 +83,12 @@ def run_scout():
 
             except Exception as ai_err:
                 print(f"⚠️ AI Tool Error: {ai_err}")
-                # Safety Net: If AI fails, we still send the headline to Telegram
-                final_text = f"*Title:* {target_title}\n\n_(Note: AI summary unavailable due to daily limit. Please check the RBI site for details.)_"
+                final_text = f"*Title:* {target_title}\n\n_(Note: AI summary currently unavailable. Check RBI site for details.)_"
             
             # --- STEP 6: SENDING ---
             print("Step 6: Sending to Telegram...")
             send_to_telegram(f"🚨 *NEW SOVEREIGN BRIEF*\n\n{final_text}")
-            print("DONE!")
+            print("Process Complete.")
 
         finally:
             browser.close()
