@@ -49,7 +49,6 @@ def run_scout():
             # --- STEP 5: THE SOVEREIGN BRIEF (WITH SEARCH & ARCHIVE) ---
             print("Step 5: Generating Deep Intelligence...")
             try:
-                # Combining your new code's prompt with our scraper's target
                 prompt = f"""
                 Research the RBI notification: '{target_title}'
                 Provide a Sovereign Brief for a Fintech Founder:
@@ -59,14 +58,14 @@ def run_scout():
                 4. PREVIOUS CONTEXT: What older policy does this update?
                 """
                 
-                # Using the 2026 SDK search tool configuration
-                google_search_tool = types.Tool(google_search=types.GoogleSearch())
-                config = types.GenerateContentConfig(tools=[google_search_tool])
-                
+                # STABLE 2026 SYNTAX: We use a simple dictionary for the tools
+                # This prevents the "AttributeError" you saw in GitHub Actions
                 response = client.models.generate_content(
                     model="gemini-2.0-flash", 
                     contents=prompt,
-                    config=config
+                    config={
+                        'tools': [{'google_search': {}}] 
+                    }
                 )
                 final_text = response.text
 
@@ -79,7 +78,8 @@ def run_scout():
 
             except Exception as ai_err:
                 print(f"⚠️ AI Tool Error: {ai_err}")
-                final_text = f"Title: {target_title}\n\n(AI Research failed, sending raw title.)"
+                # Safety Net: If AI fails, we still send the headline to Telegram
+                final_text = f"*Title:* {target_title}\n\n_(Note: AI summary unavailable due to daily limit. Please check the RBI site for details.)_"
             
             # --- STEP 6: SENDING ---
             print("Step 6: Sending to Telegram...")
