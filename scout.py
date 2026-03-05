@@ -32,14 +32,21 @@ def run_scout():
             page.goto("https://www.rbi.org.in/Scripts/NotificationUser.aspx", 
                       wait_until="domcontentloaded", timeout=90000)
             
-            print("Step 3: Scanning for links...")
+print("Step 3: Scanning for notification links...")
             try:
-                # Waiting for the specific link class to be visible
-                page.wait_for_selector("a.sectionheader", state="visible", timeout=60000)
-                target_title = page.locator("a.sectionheader").first.inner_text().strip()
-                print(f"✅ Found headline: {target_title}")
+                # We'll wait for ANY link inside the main content area to be sure
+                page.wait_for_load_state("networkidle") 
+                # Broad selector: Look for links that point to 'NotificationUser.aspx?Id='
+                target_element = page.locator("a[href*='NotificationUser.aspx?Id=']").first
+                
+                if target_element.count() > 0:
+                    target_title = target_element.inner_text().strip()
+                    print(f"✅ Found match: {target_title}")
+                else:
+                    raise Exception("No notification links found on page.")
+                    
             except Exception as e:
-                print(f"⚠️ Timeout: RBI page slow or layout changed. Taking screenshot.")
+                print(f"⚠️ Search failed: {e}. Saving screenshot for debug.")
                 page.screenshot(path="error_screenshot.png")
                 return 
 
