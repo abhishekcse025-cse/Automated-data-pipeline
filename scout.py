@@ -10,7 +10,6 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 MEMORY_FILE = "last_notif.txt"
 
-# Ensure 'briefs' folder exists for your Archive
 if not os.path.exists('briefs'): 
     os.makedirs('briefs')
 
@@ -23,7 +22,6 @@ def run_scout():
     with sync_playwright() as p:
         print("Step 1: Launching Stealth Browser...")
         browser = p.chromium.launch(headless=True)
-        # Using a realistic user agent to avoid being blocked as a bot
         context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
         page = context.new_page()
         
@@ -32,21 +30,25 @@ def run_scout():
             page.goto("https://www.rbi.org.in/Scripts/NotificationUser.aspx", 
                       wait_until="domcontentloaded", timeout=90000)
             
-print("Step 3: Scanning for notification links...")
+            print("Step 3: Scanning for notification links...")
+            # We use a nested try/except here to handle the specific scraping logic
             try:
-                # We'll wait for ANY link inside the main content area to be sure
-                page.wait_for_load_state("networkidle") 
-                # Broad selector: Look for links that point to 'NotificationUser.aspx?Id='
+                # Give the page a moment to settle
+                page.wait_for_load_state("networkidle", timeout=30000)
+                
+                # Broad Net: Look for the first link that looks like an RBI Notification
                 target_element = page.locator("a[href*='NotificationUser.aspx?Id=']").first
                 
                 if target_element.count() > 0:
                     target_title = target_element.inner_text().strip()
-                    print(f"✅ Found match: {target_title}")
+                    print(f"✅ Found headline: {target_title}")
                 else:
-                    raise Exception("No notification links found on page.")
-                    
+                    print("⚠️ No notification links found on page layout.")
+                    page.screenshot(path="error_screenshot.png")
+                    return
+
             except Exception as e:
-                print(f"⚠️ Search failed: {e}. Saving screenshot for debug.")
+                print(f"⚠️ Search failed: {e}. Saving screenshot.")
                 page.screenshot(path="error_screenshot.png")
                 return 
 
@@ -73,7 +75,6 @@ print("Step 3: Scanning for notification links...")
                 4. PREVIOUS CONTEXT: What older policy does this update?
                 """
                 
-                # Using the stable dictionary-style config for the search tool
                 response = client.models.generate_content(
                     model="gemini-2.0-flash", 
                     contents=prompt,
@@ -81,7 +82,6 @@ print("Step 3: Scanning for notification links...")
                 )
                 final_text = response.text
 
-                # ARCHIVE FEATURE: Save as a Markdown file
                 date_str = datetime.date.today().strftime("%Y-%m-%d")
                 filename = f"briefs/rbi_brief_{date_str}.md"
                 with open(filename, "w") as f:
@@ -90,13 +90,15 @@ print("Step 3: Scanning for notification links...")
 
             except Exception as ai_err:
                 print(f"⚠️ AI Tool Error: {ai_err}")
-                final_text = f"*Title:* {target_title}\n\n_(Note: AI summary currently unavailable. Check RBI site for details.)_"
+                final_text = f"*Title:* {target_title}\n\n_(Note: AI summary currently unavailable. Check RBI site.)_"
             
             # --- STEP 6: SENDING ---
             print("Step 6: Sending to Telegram...")
             send_to_telegram(f"🚨 *NEW SOVEREIGN BRIEF*\n\n{final_text}")
             print("Process Complete.")
 
+        except Exception as main_err:
+            print(f"❌ Critical Error: {main_err}")
         finally:
             browser.close()
 
