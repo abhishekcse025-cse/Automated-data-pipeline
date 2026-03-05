@@ -35,7 +35,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python scout.py
 
-- name: Commit and Push Archives
+      - name: Commit and Push Archives
         run: |
           git config --global user.name "Sovereign-Bot"
           git config --global user.email "actions@github.com"
