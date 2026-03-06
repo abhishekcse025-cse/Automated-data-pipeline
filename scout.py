@@ -63,11 +63,11 @@ def run_scout():
             with open(MEMORY_FILE, "w") as f:
                 f.write(target_title)
 
-            # --- STEP 5: THE SOVEREIGN BRIEF (AI RESEARCH) ---
+        # --- STEP 5: THE SOVEREIGN BRIEF (AI RESEARCH) ---
             print("Step 5: Generating Deep Intelligence...")
             try:
                 prompt = f"""
-                Research the RBI notification: '{target_title}'
+                Analyze the RBI notification: '{target_title}'
                 Provide a Sovereign Brief for a Fintech Founder:
                 1. THE HEADLINE: The single most impactful change.
                 2. THE FINTECH IMPACT: How this affects UPI, Lending, or KYC.
@@ -75,13 +75,26 @@ def run_scout():
                 4. PREVIOUS CONTEXT: What older policy does this update?
                 """
                 
-                response = client.models.generate_content(
-                    model="gemini-2.0-flash", 
-                    contents=prompt,
-                    config={'tools': [{'google_search': {}}]}
-                )
+                try:
+                    # ATTEMPT 1: Try with Google Search (the "Satellite" approach)
+                    response = client.models.generate_content(
+                        model="gemini-2.0-flash", 
+                        contents=prompt,
+                        config={'tools': [{'google_search': {}}]}
+                    )
+                    print("✅ AI Research successful via Google Search.")
+                except Exception as search_err:
+                    # ATTEMPT 2: Fallback to direct AI summary (the "Internal" approach)
+                    print(f"⚠️ Search tool failed ({search_err}). Falling back to direct AI summary...")
+                    response = client.models.generate_content(
+                        model="gemini-2.0-flash", 
+                        contents=prompt
+                    )
+                    print("✅ AI Summary successful (Direct).")
+
                 final_text = response.text
 
+                # ARCHIVING
                 date_str = datetime.date.today().strftime("%Y-%m-%d")
                 filename = f"briefs/rbi_brief_{date_str}.md"
                 with open(filename, "w") as f:
@@ -89,9 +102,9 @@ def run_scout():
                 print(f"✅ Brief Archived: {filename}")
 
             except Exception as ai_err:
-                print(f"⚠️ AI Tool Error: {ai_err}")
-                final_text = f"*Title:* {target_title}\n\n_(Note: AI summary currently unavailable. Check RBI site.)_"
-            
+                # If BOTH attempts fail (likely a total API quota outage)
+                print(f"❌ Total AI Failure: {ai_err}")
+                final_text = f"*Title:* {target_title}\n\n_(Note: AI summary currently unavailable. Please check the RBI site directly for details.)_"
             # --- STEP 6: SENDING ---
             print("Step 6: Sending to Telegram...")
             send_to_telegram(f"🚨 *NEW SOVEREIGN BRIEF*\n\n{final_text}")
